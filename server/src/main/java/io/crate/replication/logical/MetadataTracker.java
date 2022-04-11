@@ -209,6 +209,9 @@ public final class MetadataTracker implements Closeable {
         }
         return getRemoteClusterState(client)
             .thenCompose(remoteState -> {
+//                if (subscriberState.metadata().clusterUUID().equals(remoteState.metadata().clusterUUID())) {
+//                    return CompletableFuture.failedFuture(new IllegalStateException("Cluster is trying to replicate own tables"));
+//                }
                 PublicationsMetadata publicationsMetadata = remoteState.metadata().custom(PublicationsMetadata.TYPE);
                 if (publicationsMetadata == null) {
                     LOGGER.trace("No publications found on remote cluster.");

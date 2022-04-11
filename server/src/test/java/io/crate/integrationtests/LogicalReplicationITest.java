@@ -33,6 +33,7 @@ import io.crate.user.User;
 import io.crate.user.UserLookup;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.hamcrest.Matchers;
 import org.junit.Test;
 
@@ -314,6 +315,33 @@ public class LogicalReplicationITest extends LogicalReplicationITestCase {
         var response = executeOnSubscriber("SELECT * FROM doc.t1 ORDER BY id");
         assertThat(printedTable(response.rows()), is("1| 1\n" +
                                                      "2| 2\n"));
+    }
+
+    @Test
+    @TestLogging("io.crate.replication.logical:TRACE")
+    public void test_subscribing_to_the_own_tables_on_the_same_cluster_() throws Exception {
+
+        createPublication("pub", true, List.of());
+
+        // subscription is created on the same cluster
+        executeOnPublisher("CREATE SUBSCRIPTION sub "+
+            " CONNECTION '" + publisherConnectionUrl() + "' publication pub");
+
+        executeOnPublisher("CREATE TABLE doc.t1 (id INT) WITH(" +
+            defaultTableSettings() +
+            ")");
+
+        assertBusy(
+            () -> {
+                var res = executeOnPublisher(
+                    "SELECT s.subname, sr.srrelid::text, sr.srsubstate, sr.srsubstate_reason" +
+                        " FROM pg_subscription s" +
+                        " LEFT JOIN pg_subscription_rel sr ON s.oid = sr.srsubid" +
+                        " ORDER BY s.subname");
+                assertThat(printedTable(res.rows()),
+                    Matchers.is("")); // SHOULD BE AN ERROR!
+            }, 20, TimeUnit.SECONDS
+        );
     }
 
     @Test
