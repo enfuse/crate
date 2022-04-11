@@ -537,7 +537,7 @@ public final class MetadataTracker implements Closeable {
     }
 
     @Nullable
-    private static Settings updateIndexMetadataSettings(Settings publisherMetadataSettings,
+    public static Settings updateIndexMetadataSettings(Settings publisherMetadataSettings,
                                                         Settings subscriberMetadataSettings,
                                                         IndexScopedSettings indexScopedSettings) {
         var newSettingsBuilder = Settings.builder().put(subscriberMetadataSettings);

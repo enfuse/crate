@@ -99,6 +99,8 @@ import io.crate.sql.tree.Statement;
 import io.crate.sql.tree.SwapTable;
 import io.crate.sql.tree.Update;
 import io.crate.user.UserManager;
+
+import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.inject.Singleton;
@@ -160,14 +162,15 @@ public class Analyzer {
                     RepositoryService repositoryService,
                     UserManager userManager,
                     SessionSettingRegistry sessionSettingRegistry,
-                    LogicalReplicationService logicalReplicationService
+                    LogicalReplicationService logicalReplicationService,
+                    IndexNameExpressionResolver indexNameExpressionResolver
     ) {
         this.relationAnalyzer = relationAnalyzer;
         this.dropTableAnalyzer = new DropTableAnalyzer(clusterService, schemas);
         this.dropCheckConstraintAnalyzer = new DropCheckConstraintAnalyzer(schemas);
         this.userManager = userManager;
         this.createTableStatementAnalyzer = new CreateTableStatementAnalyzer(nodeCtx);
-        this.alterTableAnalyzer = new AlterTableAnalyzer(schemas, nodeCtx);
+        this.alterTableAnalyzer = new AlterTableAnalyzer(schemas, nodeCtx, clusterService, indexNameExpressionResolver);
         this.alterTableAddColumnAnalyzer = new AlterTableAddColumnAnalyzer(schemas, nodeCtx);
         this.swapTableAnalyzer = new SwapTableAnalyzer(nodeCtx, schemas);
         this.viewAnalyzer = new ViewAnalyzer(relationAnalyzer, schemas);

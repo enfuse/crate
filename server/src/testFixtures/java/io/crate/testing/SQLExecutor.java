@@ -241,6 +241,7 @@ public class SQLExecutor {
         private Schemas schemas;
         private LoadedRules loadedRules = new LoadedRules();
         private SessionSettingRegistry sessionSettingRegistry = new SessionSettingRegistry(Set.of(loadedRules));
+        private final IndexNameExpressionResolver indexNameExpressionResolver;
 
         private Builder(ClusterService clusterService,
                         int numNodes,
@@ -260,7 +261,7 @@ public class SQLExecutor {
             schemaInfoByName.put("sys", new SysSchemaInfo(clusterService, crateSettings));
             schemaInfoByName.put("information_schema", new InformationSchemaInfo());
             schemaInfoByName.put(PgCatalogSchemaInfo.NAME, new PgCatalogSchemaInfo(udfService, tableStats));
-            IndexNameExpressionResolver indexNameExpressionResolver = new IndexNameExpressionResolver();
+            indexNameExpressionResolver = new IndexNameExpressionResolver();
             schemaInfoByName.put(
                 BlobSchemaInfo.NAME,
                 new BlobSchemaInfo(
@@ -429,7 +430,8 @@ public class SQLExecutor {
                     ),
                     userManager,
                     sessionSettingRegistry,
-                    logicalReplicationService
+                    logicalReplicationService,
+                    indexNameExpressionResolver
                 ),
                 new Planner(
                     Settings.EMPTY,

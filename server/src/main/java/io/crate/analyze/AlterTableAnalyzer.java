@@ -33,6 +33,7 @@ import io.crate.metadata.Schemas;
 import io.crate.metadata.blob.BlobSchemaInfo;
 import io.crate.metadata.blob.BlobTableInfo;
 import io.crate.metadata.doc.DocTableInfo;
+import io.crate.metadata.doc.DocTableInfoBuilder;
 import io.crate.metadata.table.Operation;
 import io.crate.sql.tree.AlterBlobTable;
 import io.crate.sql.tree.AlterTable;
@@ -43,14 +44,24 @@ import io.crate.sql.tree.Table;
 
 import java.util.List;
 
+import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
+import org.elasticsearch.cluster.service.ClusterService;
+
 class AlterTableAnalyzer {
 
     private final Schemas schemas;
     private final NodeContext nodeCtx;
+    private final ClusterService clusterService;
+    private final IndexNameExpressionResolver indexNameExpressionResolver;
 
-    AlterTableAnalyzer(Schemas schemas, NodeContext nodeCtx) {
+    AlterTableAnalyzer(Schemas schemas,
+                       NodeContext nodeCtx,
+                       ClusterService clusterService,
+                       IndexNameExpressionResolver indexNameExpressionResolver) {
         this.schemas = schemas;
         this.nodeCtx = nodeCtx;
+        this.clusterService = clusterService;
+        this.indexNameExpressionResolver = indexNameExpressionResolver;
     }
 
     AnalyzedAlterTable analyze(AlterTable<Expression> node,
@@ -108,7 +119,9 @@ class AlterTableAnalyzer {
             relationName = schemas.resolveRelation(node.table().getName(), sessionContext.searchPath());
         }
 
-        DocTableInfo tableInfo = schemas.getTableInfo(relationName, Operation.ALTER_TABLE_RENAME);
+        var builder = new DocTableInfoBuilder(nodeCtx, relationName, clusterService.state(), indexNameExpressionResolver);
+        DocTableInfo tableInfo = builder.build();
+        Operation.blockedRaiseException(tableInfo, Operation.ALTER_TABLE_RENAME);
         RelationName newRelationName = new RelationName(relationName.schema(), newIdentParts.get(0));
         newRelationName.ensureValidForRelationCreation();
         return new AnalyzedAlterTableRename(tableInfo, newRelationName);

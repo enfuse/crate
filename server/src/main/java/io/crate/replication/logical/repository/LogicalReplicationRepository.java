@@ -49,6 +49,8 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.UUIDs;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
+import org.elasticsearch.common.settings.IndexScopedSettings;
+import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.mapper.MapperService;
 import org.elasticsearch.index.shard.ShardId;
@@ -73,7 +75,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import static io.crate.replication.logical.LogicalReplicationSettings.NON_REPLICATED_SETTINGS;
 import static io.crate.replication.logical.LogicalReplicationSettings.PUBLISHER_INDEX_UUID;
+import static io.crate.replication.logical.LogicalReplicationSettings.REPLICATION_PUBLICATION_NAMES;
 import static io.crate.replication.logical.LogicalReplicationSettings.REPLICATION_SUBSCRIPTION_NAME;
 
 /**
@@ -193,11 +197,14 @@ public class LogicalReplicationRepository extends AbstractLifecycleComponent imp
                     continue;
                 }
                 var indexMetadata = i.value;
+
                 // Add replication specific settings, this setting will trigger a custom engine, see {@link SQLPlugin#getEngineFactory}
                 var builder = Settings.builder().put(indexMetadata.getSettings());
                 builder.put(REPLICATION_SUBSCRIPTION_NAME.getKey(), subscriptionName);
                 // Store publishers original index UUID to be able to resolve the original index later on
                 builder.put(PUBLISHER_INDEX_UUID.getKey(), indexMetadata.getIndexUUID());
+                // Do not add store the publication related information
+                builder.putList(REPLICATION_PUBLICATION_NAMES.getKey(), List.of());
 
                 var indexMdBuilder = IndexMetadata.builder(indexMetadata).settings(builder);
                 indexMetadata.getAliases().valuesIt().forEachRemaining(a -> indexMdBuilder.putAlias(a.get()));
@@ -218,6 +225,8 @@ public class LogicalReplicationRepository extends AbstractLifecycleComponent imp
             builder.put(REPLICATION_SUBSCRIPTION_NAME.getKey(), subscriptionName);
             // Store publishers original index UUID to be able to resolve the original index later on
             builder.put(PUBLISHER_INDEX_UUID.getKey(), indexMetadata.getIndexUUID());
+            // Do not add store the publication related information
+            builder.putList(REPLICATION_PUBLICATION_NAMES.getKey(), List.of());
 
             var indexMdBuilder = IndexMetadata.builder(indexMetadata).settings(builder);
             indexMetadata.getAliases().valuesIt().forEachRemaining(a -> indexMdBuilder.putAlias(a.get()));

@@ -21,6 +21,8 @@
 
 package io.crate.replication.logical.action;
 
+import static io.crate.replication.logical.LogicalReplicationSettings.REPLICATION_PUBLICATION_NAMES;
+
 import io.crate.exceptions.RelationUnknown;
 import io.crate.execution.ddl.AbstractDDLTransportAction;
 import io.crate.metadata.PartitionName;
@@ -34,14 +36,17 @@ import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateTaskExecutor;
 import org.elasticsearch.cluster.block.ClusterBlockException;
 import org.elasticsearch.cluster.block.ClusterBlockLevel;
+import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.inject.Singleton;
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
+import java.util.List;
 import java.util.Locale;
 
 @Singleton
@@ -98,6 +103,12 @@ public class TransportCreatePublicationAction extends AbstractDDLTransportAction
                     if (currentMetadata.hasIndex(relation.indexNameOrAlias()) == false
                         && currentMetadata.templates().containsKey(PartitionName.templateName(relation.schema(), relation.name())) == false) {
                         throw new RelationUnknown(relation);
+                    } else {
+                        // Set publication as part of the setting
+                        IndexMetadata index = currentMetadata.index(relation.indexNameOrAlias());
+                        if (index != null) {
+                            mdBuilder.put(setPublicationSetting(index, request.name()));
+                        }
                     }
                 }
 
@@ -113,6 +124,20 @@ public class TransportCreatePublicationAction extends AbstractDDLTransportAction
                 return ClusterState.builder(currentState).metadata(mdBuilder).build();
             }
         };
+    }
+
+    private static IndexMetadata.Builder setPublicationSetting(IndexMetadata index, String publicationName) {
+        Settings settings = index.getSettings();
+        List<String> publicationNames = REPLICATION_PUBLICATION_NAMES.get(settings);
+        if (publicationNames == null) {
+            publicationNames = List.of(publicationName);
+        } else {
+            publicationNames.add(publicationName);
+        }
+        var updatedSettings = Settings.builder().put(settings).putList(REPLICATION_PUBLICATION_NAMES.getKey(), publicationNames);
+        return new IndexMetadata.Builder(index).settings(updatedSettings).settingsVersion(index.getSettingsVersion() + 1);
+
+
     }
 
     @Override
